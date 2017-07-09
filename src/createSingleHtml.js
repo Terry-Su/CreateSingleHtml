@@ -58,8 +58,9 @@ const createSingleHtml = {
                         .then(response => response.text())
                         .then(text => {
                             // replace "link" with "style"
-                            $(link).after(`<style>${text}</style>`)
-                            link.remove()
+                            const style = document.createElement('style')
+                            style.innerHTML = text
+                            $(link).replaceWith(style)
                             resolve()
                         })
                         .catch(err => {
@@ -79,8 +80,7 @@ const createSingleHtml = {
         // get scripts
         const scripts = $('script[src]').toArray().filter(script => {
             const { src } = script
-            // return checkSameOrigin(src) && !/createSingleHtml\.js/.test(src)
-            return !/createSingleHtml\.js/.test(src)
+            return checkSameOrigin(src) && !/createSingleHtml\.js/.test(src)
         })
 
         const scriptsPromises = scripts.map(script => {
@@ -91,8 +91,9 @@ const createSingleHtml = {
                     .then(response => response.text())
                     .then(text => {
                         // replace "script" with "full text script"
-                        $(script).after(`<script>${text}</script>`)
-                        script.remove()
+                        const newScript = document.createElement('script')
+                        newScript.innerHTML = text
+                        $(script).replaceWith(newScript)
                         resolve()
                     })
                     .catch(err => {
