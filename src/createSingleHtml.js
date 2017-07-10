@@ -61,6 +61,8 @@ const createSingleHtml = {
                             const style = document.createElement('style')
                             style.innerHTML = text
                             $(link).replaceWith(style)
+                            // style.remove()
+                            // $('head').append(`<style>${text}</style>`)
                             resolve()
                         })
                         .catch(err => {
@@ -91,9 +93,11 @@ const createSingleHtml = {
                     .then(response => response.text())
                     .then(text => {
                         // replace "script" with "full text script"
-                        const newScript = document.createElement('script')
-                        newScript.innerHTML = text
-                        $(script).replaceWith(newScript)
+                        // const newScript = document.createElement('script')
+                        // newScript.innerHTML = text
+                        // $(script).replaceWith(newScript)
+                        script.remove()
+                        $('body').append(`<script>${text}</script>`)
                         resolve()
                     })
                     .catch(err => {
@@ -112,7 +116,7 @@ const createSingleHtml = {
         const images = $('img[src]').toArray().filter(image => {
             const { src } = image
             const isNotBase64 = !/^data/i.test(src)
-            return isNotBase64
+            return checkSameOrigin(src) && isNotBase64
         })
 
         const imagesPromises = images.map(image => {
@@ -124,7 +128,8 @@ const createSingleHtml = {
                     .then(blob => asyncGetBase64(blob))
                     .then(base64 => {
                         // replace "image src" with "base64 src"
-                        image.src = base64
+                        // image._s_r_c = base64
+                        image.setAttribute('_s_r_c', base64)
                         resolve()
                     })
                     .catch(err => {
@@ -142,14 +147,15 @@ const createSingleHtml = {
      * get full html
      */
     getFullHtml() {
-        return $('html').html().replace(/createSingleHtml\.js/, 'createSingleHtml_discarded')
+        // return document.documentElement.outerHTML.replace(/createSingleHtml\.js/, 'createSingleHtml_discarded')
+        return document.documentElement.outerHTML
     },
 
     /**
      * get full html compressed
      */
     getFullCompressedHtml() {
-        return $('html').html().replace(/createSingleHtml\.js/, 'createSingleHtml_discarded').replace(/\n|\t/g, ' ')
+        return self.getFullHtml().replace(/\n|\t/g, ' ')
     },
 
     /**
@@ -169,6 +175,9 @@ const createSingleHtml = {
         try {
             self.rewriteHrefToFullHref()
             self.rewriteSrcToFullSrc()
+            // .then(value => {
+            //     return self.rewriteImages()
+            // })
             self.rewriteCss()
                 .then(value => {
                     return self.rewriteScripts()
@@ -190,7 +199,7 @@ const createSingleHtml = {
                     visualLogger.show(err.toString())
                 })
         } catch (e) {
-            debug && visualLogger.show(e.toString())
+            debug && visualLogger.show(e.toString() || 'Compile error')
         }
     },
 }
@@ -199,9 +208,9 @@ self = createSingleHtml
 
 
 createSingleHtml.generate({
-    mode: 1,
-    shouldCompress: true,
-    debug: false
+    mode: 0,
+    shouldCompress: false,
+    debug: true
 })
 
 

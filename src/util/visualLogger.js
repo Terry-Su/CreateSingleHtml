@@ -7,7 +7,8 @@ const visualLogger = {
     if ($('#visualLogger').length === 0) {
       $('body').prepend(`
         <p>
-          <textarea id="visualLogger" style="width:100%; resize:none;color:red;" disabled></textarea>
+          <!--<textarea id="visualLogger" style="width:100%; resize:none;color:red;" disabled></textarea>-->
+          <p id="visualLogger" style="width:100%;color:red;" disabled></p>
           <br />
         </p>
       `)
