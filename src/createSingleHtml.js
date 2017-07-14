@@ -58,11 +58,11 @@ const createSingleHtml = {
                         .then(response => response.text())
                         .then(text => {
                             // replace "link" with "style"
-                            const style = document.createElement('style')
-                            style.innerHTML = text
-                            $(link).replaceWith(style)
-                            // style.remove()
-                            // $('head').append(`<style>${text}</style>`)
+                            // const style = document.createElement('style')
+                            // style.innerHTML = text
+                            // $(link).replaceWith(style)
+                            link.remove()
+                            $('head').append(`<style>${text}</style>`)
                             resolve()
                         })
                         .catch(err => {
@@ -128,8 +128,9 @@ const createSingleHtml = {
                     .then(blob => asyncGetBase64(blob))
                     .then(base64 => {
                         // replace "image src" with "base64 src"
-                        // image._s_r_c = base64
+                        // image.setAttribute('src', '')
                         image.setAttribute('_s_r_c', base64)
+                        $(image).after('' + base64.length)
                         resolve()
                     })
                     .catch(err => {
@@ -155,7 +156,7 @@ const createSingleHtml = {
      * get full html compressed
      */
     getFullCompressedHtml() {
-        return self.getFullHtml().replace(/\n|\t/g, ' ')
+        // return self.getFullHtml().replace(/\n|\t/g, ' ')
     },
 
     /**
@@ -175,22 +176,22 @@ const createSingleHtml = {
         try {
             self.rewriteHrefToFullHref()
             self.rewriteSrcToFullSrc()
-            // .then(value => {
-            //     return self.rewriteImages()
-            // })
+
+
+            //     .then(value => {
+            //         return self.rewriteImages()
+            //     })
+
             self.rewriteCss()
                 .then(value => {
                     return self.rewriteScripts()
                 })
                 .then(value => {
-                    return self.rewriteImages()
-                })
-                .then(value => {
                     debug ? null : visualLogger.hide()
 
                     switch (mode) {
-                        case 0: return shouldCompress ? console.log(self.getFullCompressedHtml()) : console.log(self.getFullHtml())
-                        case 1: return shouldCompress ? download(`${document.title}.html`, self.getFullCompressedHtml()) : download(`${document.title}.html`, self.getFullHtml())
+                        case 0: return shouldCompress ? console.log(self.getFullHtml()) : console.log(self.getFullHtml())
+                        case 1: return shouldCompress ? download(`${document.title}.html`, self.getFullHtml()) : download(`${document.title}.html`, self.getFullHtml())
                     }
 
 
@@ -210,7 +211,7 @@ self = createSingleHtml
 createSingleHtml.generate({
     mode: 0,
     shouldCompress: false,
-    debug: true
+    debug: false
 })
 
 
