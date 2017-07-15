@@ -1,11 +1,11 @@
-var webpack = require('webpack');
-var path = require('path');
-var glob = require("glob");
+const webpack = require('webpack');
+const path = require('path');
+const glob = require("glob");
 
-var isProduction = true;
+const isProduction = true
 
 // solve the problem of promise compliation
-var plugins = [new webpack.IgnorePlugin(/vertx/)];
+let plugins = [new webpack.IgnorePlugin(/vertx/)];
 
 if (isProduction) {
   plugins.push(new webpack.DefinePlugin({
@@ -16,7 +16,7 @@ if (isProduction) {
   plugins.push(new webpack.optimize.UglifyJsPlugin());
 }
 
-var basicConfig = {
+const basicConfig = {
   module: {
     rules: [
       {
@@ -45,7 +45,7 @@ var basicConfig = {
   },
   plugins: plugins
 }
-var configs = [
+const configs = [
   Object.assign({
     entry: './src/createSingleHtml.js',
     output: {

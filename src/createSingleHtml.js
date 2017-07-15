@@ -2,6 +2,8 @@ import 'babel-polyfill'
 
 import $ from 'jquery'
 import './util/fetch'
+import xttpFetch from './util/xttpFetch'
+import base64XttpFetch from './util/base64XttpFetch'
 
 import { checkSameOrigin } from './util/index'
 import asyncGetBase64 from './util/asyncGetBase64'
@@ -19,10 +21,43 @@ Object.assign(window.UnitTest, {
 
 const createSingleHtml = {
     /**
-     * rewrite href to full href
+     * 
+     */
+    splitSymbol: `createSingleHtml${Date.now()}${Date.now()}`,
+
+    /**
+     * resolve link
+     * @param {Object} link
+     * @param {String} text the text can be got by link
+     */
+    resolveLink(link, text) {
+        // $(link).replaceWith(`<style>${text}</style>`)
+        $(link).replaceWith(`<!--${self.splitSymbol}<style>${text}</style>${self.splitSymbol}-->`)        
+    },
+
+    /**
+     * resolve script
+     * @param {Object} script
+     * @param {String} text the text can be got by script
+     */
+    resolveScript(script, text) {
+        $(script).replaceWith(`<!--${self.splitSymbol}<script>${text}</script>${self.splitSymbol}-->`)
+    },
+
+    /**
+     * resolve image
+     * @param {Object} image 
+     * @param {String} base64 base64 code
+     */
+    resolveImage(image, base64) {
+        image.setAttribute('src', base64)
+    },
+
+    /**
+     * resolve href to full href
      * example: "<link href="./test.css" />" --> "<link href="http://domain/test.css" />"
      */
-    rewriteHrefToFullHref() {
+    resolveHrefToFullHref() {
         const $hrefDoms = $('[href]')
         $hrefDoms.each((i, dom) => {
             const { href } = dom
@@ -31,10 +66,10 @@ const createSingleHtml = {
     },
 
     /**
-     * rewrite src to full src
+     * resolve src to full src
      * example: "<script src="/test.js"></script>" --> "<script src="http://doamin/test.js"></script>"
      */
-    rewriteSrcToFullSrc() {
+    resolveSrcToFullSrc() {
         const $srcDoms = $('[src]')
         $srcDoms.each((i, dom) => {
             const { src } = dom
@@ -43,31 +78,33 @@ const createSingleHtml = {
     },
 
     /**
-     * rewrite CSS
+     * resolve links
      */
-    rewriteCss() {
+    resolveLinks() {
         // get css links
         const links = $('[href$="css"]').toArray().filter(link => checkSameOrigin(link.href))
-
         const linksPromises = links.map(link => {
             const { href } = link
             // get css's style text
             return new Promise(
-                resolve => {
+                (resolve, reject) => {
                     fetch(href)
                         .then(response => response.text())
                         .then(text => {
-                            // replace "link" with "style"
-                            // const style = document.createElement('style')
-                            // style.innerHTML = text
-                            // $(link).replaceWith(style)
-                            link.remove()
-                            $('head').append(`<style>${text}</style>`)
+                            self.resolveLink(link, text)
                             resolve()
                         })
                         .catch(err => {
                             visualLogger.show(err.toString())
-                            resolve()
+                            xttpFetch(href)
+                                .then(text => {
+                                    self.resolveLink(link, text)
+                                    resolve()
+                                })
+                                .catch(err => {
+                                    visualLogger.show(err.toString())
+                                    reject('fetch css or xttpFetch failed')
+                                })
                         })
                 }
             )
@@ -77,8 +114,8 @@ const createSingleHtml = {
     },
 
 
-    // rewrite scripts
-    rewriteScripts() {
+    // resolve scripts
+    resolveScripts() {
         // get scripts
         const scripts = $('script[src]').toArray().filter(script => {
             const { src } = script
@@ -87,31 +124,35 @@ const createSingleHtml = {
 
         const scriptsPromises = scripts.map(script => {
             const { src } = script
-            return new Promise(resolve => {
-                // get script's style text
-                fetch(src)
-                    .then(response => response.text())
-                    .then(text => {
-                        // replace "script" with "full text script"
-                        // const newScript = document.createElement('script')
-                        // newScript.innerHTML = text
-                        // $(script).replaceWith(newScript)
-                        script.remove()
-                        $('body').append(`<script>${text}</script>`)
-                        resolve()
-                    })
-                    .catch(err => {
-                        visualLogger.show(err.toString())
-                        resolve()
-                    })
-            })
+            return new Promise(
+                (resolve, reject) => {
+                    // get script's style text
+                    fetch(src)
+                        .then(response => response.text())
+                        .then(text => {
+                            self.resolveScript(script, text)
+                            resolve()
+                        })
+                        .catch(err => {
+                            visualLogger.show(err.toString())
+                            xttpFetch(src)
+                                .then(text => {
+                                    self.resolveScript(script, text)
+                                    resolve()
+                                })
+                                .catch(err => {
+                                    visualLogger.show(err.toString())
+                                    reject('fetch script or xttpFetch failed')
+                                })
+                        })
+                })
         })
 
         return Promise.all(scriptsPromises)
     },
 
-    // rewrite images(ignore orgin)
-    rewriteImages() {
+    // resolve images(ignore orgin)
+    resolveImages() {
         // get images
         const images = $('img[src]').toArray().filter(image => {
             const { src } = image
@@ -121,24 +162,30 @@ const createSingleHtml = {
 
         const imagesPromises = images.map(image => {
             const { src } = image
-            return new Promise(resolve => {
-                // get base64 code of image
-                fetch(src)
-                    .then(response => response.blob())
-                    .then(blob => asyncGetBase64(blob))
-                    .then(base64 => {
-                        // replace "image src" with "base64 src"
-                        // image.setAttribute('src', '')
-                        image.setAttribute('_s_r_c', base64)
-                        $(image).after('' + base64.length)
-                        resolve()
-                    })
-                    .catch(err => {
-                        // Anotated for some images(other domain) may support crossing domain
-                        // visualLogger.show(err.toString())
-                        resolve()
-                    })
-            })
+            return new Promise(
+                (resolve, reject) => {
+                    // get base64 code of image
+                    // fetch(src)
+                    // .then(response => response.blob())
+                    // .then(blob => asyncGetBase64(blob))
+                    base64XttpFetch(src)
+                        .then(base64 => {
+                            self.resolveImage(image, base64)
+                            resolve()
+                        })
+                        .catch(err => {
+                            visualLogger.show(err.toString())
+                            base64XttpFetch(src)
+                                .then(base64 => {
+                                    self.resolveImage(image, base64)
+                                    resolve()
+                                })
+                                .catch(err => {
+                                    visualLogger.show(err.toString())
+                                    reject('fetch image or base64XttpFetch failed')
+                                })
+                        })
+                })
         })
 
         return Promise.all(imagesPromises)
@@ -148,15 +195,9 @@ const createSingleHtml = {
      * get full html
      */
     getFullHtml() {
-        // return document.documentElement.outerHTML.replace(/createSingleHtml\.js/, 'createSingleHtml_discarded')
-        return document.documentElement.outerHTML
-    },
-
-    /**
-     * get full html compressed
-     */
-    getFullCompressedHtml() {
-        // return self.getFullHtml().replace(/\n|\t/g, ' ')
+        const start = new RegExp(`<!--${self.splitSymbol}`,'g')
+        const end = new RegExp(`${self.splitSymbol}-->`, 'g')
+        return document.documentElement.outerHTML.replace(start, '').replace(end, '').replace(/createSingleHtml\.js/, 'createSingleHtml_discarded')
     },
 
     /**
@@ -165,42 +206,67 @@ const createSingleHtml = {
      *  @var {Number} mode 
      *   0: log in console
      *   1: download .html
-     *  @var {Boolean} shouldCompress
      *  @var {Boolean} debug
+     *  @var {Boolean} shouldUpdateCss
+     *  @var {Boolean} shouldUpdateScript
+     *  @var {Boolean} shouldUpdateImage
      */
     generate({
         mode = 0,
-        shouldCompress = true,
-        debug = false
+        debug = false,
+        shouldUpdateCss = true,
+        shouldUpdateScript = true,
+        shouldUpdateImage = true
   }) {
         try {
-            self.rewriteHrefToFullHref()
-            self.rewriteSrcToFullSrc()
 
+            {
+                shouldUpdateCss && self.resolveHrefToFullHref()
+            }
 
-            //     .then(value => {
-            //         return self.rewriteImages()
-            //     })
+            {
+                (shouldUpdateScript || shouldUpdateImage) && self.resolveSrcToFullSrc()
+            }
 
-            self.rewriteCss()
-                .then(value => {
-                    return self.rewriteScripts()
+            Promise.all([
+                shouldUpdateCss && new Promise((resolve, reject) => {
+                    self.resolveLinks()
+                        .then(value => {
+                            resolve(value)
+                        })
+                        .catch(err => {
+                            reject(err)
+                        })
+                }),
+                shouldUpdateScript && new Promise((resolve, reject) => {
+                    self.resolveScripts()
+                        .then(value => {
+                            resolve(value)
+                        })
+                        .catch(err => {
+                            reject(err)
+                        })
+                }),
+                shouldUpdateImage && new Promise((resolve, reject) => {
+                    self.resolveImages()
+                        .then(value => {
+                            resolve(value)
+                        })
+                        .catch(err => {
+                            reject(err)
+                        })
                 })
-                .then(value => {
-                    debug ? null : visualLogger.hide()
+            ])
+            .then(value => {
+                switch(mode) {
+                    case 0: return console.log(self.getFullHtml())
+                    case 1: return download(`download_${document.title}.html`, self.getFullHtml())
+                }
+            })
 
-                    switch (mode) {
-                        case 0: return shouldCompress ? console.log(self.getFullHtml()) : console.log(self.getFullHtml())
-                        case 1: return shouldCompress ? download(`${document.title}.html`, self.getFullHtml()) : download(`${document.title}.html`, self.getFullHtml())
-                    }
-
-
-                })
-                .catch(err => {
-                    visualLogger.show(err.toString())
-                })
         } catch (e) {
             debug && visualLogger.show(e.toString() || 'Compile error')
+            console.log(e)
         }
     },
 }
@@ -210,12 +276,16 @@ self = createSingleHtml
 
 createSingleHtml.generate({
     mode: 0,
-    shouldCompress: false,
-    debug: false
+    shouldUpdateImage: false
 })
 
 
-export default createSingleHtml
+
+function output(content) {
+    document.body.innerHTML = 'test'
+}
+
+// export default createSingleHtml
 
 
 
