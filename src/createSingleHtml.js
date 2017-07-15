@@ -7,7 +7,6 @@ import base64XttpFetch from './util/base64XttpFetch'
 
 import { checkSameOrigin } from './util/index'
 import asyncGetBase64 from './util/asyncGetBase64'
-import visualLogger from './util/visualLogger'
 import download from './util/download.js'
 let self
 
@@ -31,8 +30,8 @@ const createSingleHtml = {
      * @param {String} text the text can be got by link
      */
     resolveLink(link, text) {
-        // $(link).replaceWith(`<style>${text}</style>`)
-        $(link).replaceWith(`<!--${self.splitSymbol}<style>${text}</style>${self.splitSymbol}-->`)        
+        $(link).replaceWith(`<style>${text}</style>`)
+        // $(link).replaceWith(`<!--${self.splitSymbol}<style>${text}</style>${self.splitSymbol}-->`)        
     },
 
     /**
@@ -95,14 +94,12 @@ const createSingleHtml = {
                             resolve()
                         })
                         .catch(err => {
-                            visualLogger.show(err.toString())
                             xttpFetch(href)
                                 .then(text => {
                                     self.resolveLink(link, text)
                                     resolve()
                                 })
                                 .catch(err => {
-                                    visualLogger.show(err.toString())
                                     reject('fetch css or xttpFetch failed')
                                 })
                         })
@@ -134,14 +131,12 @@ const createSingleHtml = {
                             resolve()
                         })
                         .catch(err => {
-                            visualLogger.show(err.toString())
                             xttpFetch(src)
                                 .then(text => {
                                     self.resolveScript(script, text)
                                     resolve()
                                 })
                                 .catch(err => {
-                                    visualLogger.show(err.toString())
                                     reject('fetch script or xttpFetch failed')
                                 })
                         })
@@ -174,14 +169,12 @@ const createSingleHtml = {
                             resolve()
                         })
                         .catch(err => {
-                            visualLogger.show(err.toString())
                             base64XttpFetch(src)
                                 .then(base64 => {
                                     self.resolveImage(image, base64)
                                     resolve()
                                 })
                                 .catch(err => {
-                                    visualLogger.show(err.toString())
                                     reject('fetch image or base64XttpFetch failed')
                                 })
                         })
@@ -265,7 +258,6 @@ const createSingleHtml = {
             })
 
         } catch (e) {
-            debug && visualLogger.show(e.toString() || 'Compile error')
             console.log(e)
         }
     },
@@ -275,8 +267,7 @@ self = createSingleHtml
 
 
 createSingleHtml.generate({
-    mode: 0,
-    shouldUpdateImage: false
+    mode: 0
 })
 
 
